@@ -70,3 +70,19 @@ Resources:
       TreatMissingData: notBreaching
 
 
+  # ============================================================
+  # 3. DIAGNOSIS - ZAMAN
+  # ============================================================
+
+  DiagnoseWithBedrockFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: functions/zaman/diagnose-with-bedrock/
+      Handler: index.handler
+      Runtime: nodejs24.x
+      Architectures:
+        - x86_64
+      Timeout: 30
+
+
+  
