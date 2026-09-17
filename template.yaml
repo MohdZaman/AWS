@@ -402,4 +402,57 @@ Resources:
         - http://localhost:5173/
 
 
+  # ============================================================
+  # 12. COGNITO HOSTED UI DOMAIN
+  # ============================================================
+
+  SelfHealingCognitoDomain:
+    Type: AWS::Cognito::UserPoolDomain
+
+    Properties:
+      UserPoolId: !Ref SelfHealingUserPool
+
+      Domain: !Sub "self-healing-${AWS::AccountId}"
+
+
+  # ============================================================
+  # 13. FRONTEND APPROVAL API LAMBDA
+  # ============================================================
+
+  ApprovalApiFunction:
+    Type: AWS::Serverless::Function
+
+    Properties:
+      CodeUri: self-healing-azizul/self-healing-azizul/functions/azizul/approval-api/
+      Handler: index.handler
+      Runtime: nodejs24.x
+      Architectures:
+        - x86_64
+      Timeout: 30
+
+      Environment:
+        Variables:
+          INCIDENT_TABLE: !Ref IncidentsTable
+          ALLOW_ORIGIN: http://localhost:5173
+
+      Policies:
+        - Version: "2012-10-17"
+          Statement:
+
+            # Approval API → DynamoDB
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:Scan
+                - dynamodb:UpdateItem
+              Resource: !GetAtt IncidentsTable.Arn
+
+            # Approval API → Step Functions
+            - Effect: Allow
+              Action:
+                - states:SendTaskSuccess
+                - states:SendTaskFailure
+              Resource: "*"
+
+
   
