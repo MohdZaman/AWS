@@ -371,4 +371,35 @@ Resources:
         - email
 
 
+  # ============================================================
+  # 11. COGNITO SPA APP CLIENT
+  # ============================================================
+
+  SelfHealingUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+
+    Properties:
+      UserPoolId: !Ref SelfHealingUserPool
+
+      ClientName: SelfHealingDashboardSPA
+
+      GenerateSecret: false
+
+      AllowedOAuthFlows:
+        - code
+
+      AllowedOAuthScopes:
+        - openid
+        - email
+        - profile
+
+      AllowedOAuthFlowsUserPoolClient: true
+
+      CallbackURLs:
+        - http://localhost:5173/
+
+      LogoutURLs:
+        - http://localhost:5173/
+
+
   
