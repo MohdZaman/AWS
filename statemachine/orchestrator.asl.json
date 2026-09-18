@@ -1,0 +1,274 @@
+
+{
+  "Comment": "Self-Healing Infrastructure Orchestrator",
+  "StartAt": "Prepare Incident",
+  "States": {
+    "Prepare Incident": {
+      "Type": "Pass",
+      "Parameters": {
+        "incidentId.$": "$.id",
+        "resourceType": "Lambda",
+        "alarmName.$": "$.detail.alarmName",
+        "alarmState.$": "$.detail.state.value",
+        "alarmReason.$": "$.detail.state.reason",
+        "source.$": "$.source",
+        "account.$": "$.account",
+        "region.$": "$.region",
+        "eventTime.$": "$.time",
+        "metric": "Errors",
+        "value": 1,
+        "threshold": 0
+      },
+      "Next": "Describe Alarm"
+    },
+
+    "Describe Alarm": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::aws-sdk:cloudwatch:describeAlarms",
+      "Parameters": {
+        "AlarmNames.$": "States.Array($.alarmName)"
+      },
+      "ResultSelector": {
+        "resourceArn.$": "States.Format('arn:aws:lambda:{}:{}:function:{}', $$.Execution.Input.region, $$.Execution.Input.account, $.MetricAlarms[0].Dimensions[0].Value)"
+           },
+      "ResultPath": "$.alarmDetails",
+      "Next": "Set Resource ARN"
+    },
+
+    "Set Resource ARN": {
+      "Type": "Pass",
+      "Parameters": {
+        "incidentId.$": "$.incidentId",
+        "resourceType.$": "$.resourceType",
+        "alarmName.$": "$.alarmName",
+        "alarmState.$": "$.alarmState",
+        "alarmReason.$": "$.alarmReason",
+        "resourceArn.$": "$.alarmDetails.resourceArn",
+        "source.$": "$.source",
+        "account.$": "$.account",
+        "region.$": "$.region",
+        "eventTime.$": "$.eventTime",
+        "metric.$": "$.metric",
+        "value.$": "$.value",
+        "threshold.$": "$.threshold"
+      },
+      "Next": "Lambda Invoke"
+    },
+
+    "Lambda Invoke": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "Payload.$": "$",
+        "FunctionName": "${DiagnoseFunctionArn}"
+      },
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 1,
+          "MaxAttempts": 3,
+          "BackoffRate": 2,
+          "JitterStrategy": "FULL"
+        }
+      ],
+      "ResultPath": "$",
+      "OutputPath": "$.Payload",
+      "Next": "DynamoDB PutItem"
+    },
+
+    "DynamoDB PutItem": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:putItem",
+      "Parameters": {
+        "TableName": "SelfHealingIncidents",
+        "Item": {
+          "incidentId": {
+            "S.$": "$.incidentId"
+          },
+          "resourceType": {
+            "S.$": "$.resourceType"
+          },
+          "resourceArn": {
+            "S.$": "$.resourceArn"
+          },
+          "metric": {
+            "S.$": "$.metric"
+          },
+          "metricValue": {
+            "N.$": "States.Format('{}', $.value)"
+          },
+          "threshold": {
+            "N.$": "States.Format('{}', $.threshold)"
+          },
+          "diagnosedAt": {
+            "S.$": "$$.State.EnteredTime"
+          },
+          "rootCause": {
+            "S.$": "$.rootCause"
+          },
+          "severity": {
+            "S.$": "$.severity"
+          },
+          "reason": {
+            "S.$": "$.reason"
+          },
+          "confidence": {
+            "N.$": "States.Format('{}', $.confidence)"
+          },
+          "confidenceReason": {
+            "S.$": "$.confidenceReason"
+          },
+          "blastRadius": {
+            "S.$": "$.blastRadius"
+          },
+          "blastRadiusReason": {
+            "S.$": "$.blastRadiusReason"
+          },
+          "estimatedCostImpact": {
+            "S.$": "$.estimatedCostImpact"
+          },
+          "fixAction": {
+            "S.$": "$.fix.action"
+          },
+          "fixParameters": {
+            "S.$": "States.JsonToString($.fix.parameters)"
+          }
+        }
+      },
+      "ResultPath": null,
+      "Next": "Wait for Approval"
+    },
+
+    "Wait for Approval": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke.waitForTaskToken",
+      "Parameters": {
+        "FunctionName": "${ApprovalFunctionArn}",
+        "Payload": {
+          "taskToken.$": "$$.Task.Token",
+          "incident.$": "$"
+        }
+      },
+      "ResultPath": "$.approval",
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "RejectedByOperator"
+          ],
+          "ResultPath": "$.approval",
+          "Next": "Approval Rejected"
+        }
+      ],
+      "Next": "Check Approval"
+    },
+
+    "Check Approval": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.approval.approved",
+          "BooleanEquals": true,
+          "Next": "Apply Fix"
+        }
+      ],
+      "Default": "Approval Rejected"
+    },
+
+    "Apply Fix": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${ApplyFixFunctionArn}",
+        "Payload.$": "$"
+      },
+      "ResultPath": "$.fixResult",
+      "OutputPath": "$",
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 1,
+          "MaxAttempts": 3,
+          "BackoffRate": 2,
+          "JitterStrategy": "FULL"
+        }
+      ],
+      "Next": "DynamoDB UpdateItem"
+    },
+
+    "DynamoDB UpdateItem": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:updateItem",
+      "Parameters": {
+        "TableName": "SelfHealingIncidents",
+        "Key": {
+          "incidentId": {
+            "S.$": "$.incidentId"
+          }
+        },
+        "UpdateExpression": "SET approvalStatus = :approved, approvedBy = :approvedBy, approvedAt = :approvedAt, fixStatus = :fixStatus, fixResult = :fixResult",
+        "ExpressionAttributeValues": {
+          ":approved": {
+            "S": "APPROVED"
+          },
+          ":approvedBy": {
+            "S.$": "$.approval.approvedBy"
+          },
+          ":approvedAt": {
+            "S.$": "$.approval.approvedAt"
+          },
+          ":fixStatus": {
+            "S": "COMPLETED"
+          },
+          ":fixResult": {
+            "S.$": "States.JsonToString($.fixResult.Payload)"
+          }
+        }
+      },
+      "ResultPath": null,
+      "Next": "Fix Completed"
+    },
+
+    "Fix Completed": {
+      "Type": "Succeed"
+    },
+
+    "Approval Rejected": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::dynamodb:updateItem",
+      "Parameters": {
+        "TableName": "SelfHealingIncidents",
+        "Key": {
+          "incidentId": {
+            "S.$": "$.incidentId"
+          }
+        },
+        "UpdateExpression": "SET approvalStatus = :rejected, fixStatus = :notApplied",
+        "ExpressionAttributeValues": {
+          ":rejected": {
+            "S": "REJECTED"
+          },
+          ":notApplied": {
+            "S": "NOT_APPLIED"
+          }
+        }
+      },
+      "ResultPath": null,
+      "Next": "Approval Rejected Completed"
+    },
+
+    "Approval Rejected Completed": {
+      "Type": "Succeed"
+    }
+  },
+  "QueryLanguage": "JSONPath"
+}
