@@ -65,24 +65,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  /*
-   * Cognito Hosted UI login.
-   *
-   * svcCognito() redirects the browser to Amazon Cognito.
-   * After successful login Cognito redirects back to the app.
-   *
-   * When the app starts again, the useEffect above calls
-   * getSession() and restores the authenticated user.
-   */
+
+  
   const handleCognitoSignIn = async (): Promise<void> => {
     await svcCognito();
   };
 
-  /*
-   * Direct Cognito email/password login.
-   *
-   * This is used by the custom email/password form.
-   */
+ 
   const handlePasswordSignIn = async (
     email: string,
     password: string,
@@ -91,9 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(u);
   };
 
-  /*
-   * Real Cognito logout.
-   */
+
   const handleSignOut = async (): Promise<void> => {
     await svcSignOut();
     setUser(null);
