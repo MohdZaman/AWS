@@ -4,7 +4,7 @@ import {
   signIn,
   signInWithRedirect,
   signOut as cognitoSignOut,
-} from "aws-amplify/auth";
+} from "@aws-amplify/auth";
 
 export interface AuthUser {
   email: string;
@@ -56,18 +56,7 @@ export async function getSession(): Promise<AuthUser | null> {
   }
 }
 
-/**
- * Login through the real Amazon Cognito Hosted UI.
- *
- * Clicking "Continue with Cognito" redirects the browser
- * to the Cognito login page where the user enters:
- *
- * Email
- * Password
- *
- * After successful authentication Cognito redirects
- * back to the application.
- */
+
 export async function signInWithCognito(): Promise<AuthUser> {
   await signInWithRedirect();
 
@@ -81,12 +70,7 @@ export async function signInWithCognito(): Promise<AuthUser> {
   throw new Error("Redirecting to Amazon Cognito...");
 }
 
-/**
- * Direct email/password authentication through Cognito.
- *
- * This is kept available for the custom email/password
- * form if we decide to use it later.
- */
+
 export async function signInWithPassword(
   email: string,
   password: string,
@@ -125,9 +109,7 @@ export async function signInWithPassword(
   }
 }
 
-/**
- * Real Cognito logout.
- */
+
 export async function signOut(): Promise<void> {
   try {
     await cognitoSignOut({
