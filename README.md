@@ -1,3 +1,18 @@
+## Setup
+
+### Prerequisites
+
+- Node.js
+- AWS account
+- AWS CLI
+
+### Installation
+
+Clone the repository:
+
+```bash
+git clone https://github.com/MohdZaman/AWS.git
+cd AWS
 # Self-Healing-Infra
 
 This project contains source code and supporting files for a serverless application that you can deploy with the SAM CLI. It includes the following files and folders.
