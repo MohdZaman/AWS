@@ -242,78 +242,54 @@ const rollbackVersion = async (event, parameters) => {
 };
 
 
-// ============================================================
-// INCREASE_MEMORY
-// ============================================================
-// Increases Lambda memory configuration.
-// ============================================================
-
 const increaseMemory = async (event, parameters) => {
+  const { resourceArn, incidentId } = event;
 
-    const { resourceArn, incidentId } = event;
+  const { targetMemoryMb } = parameters;
 
-    const { targetMemoryMb } = parameters;
+  const functionName = parseFunctionNameFromArn(resourceArn);
 
-    const functionName = parseFunctionNameFromArn(resourceArn);
+  // Get current configuration
+  const currentConfig = await lambdaClient.send(
+    new GetFunctionConfigurationCommand({
+      FunctionName: functionName,
+    }),
+  );
 
-
-    // Validate memory
-    if (
-        !Number.isInteger(targetMemoryMb) ||
-        targetMemoryMb < 128 ||
-        targetMemoryMb > 10240
-    ) {
-        throw new Error(
-            `Invalid targetMemoryMb: ${targetMemoryMb}. ` +
-            `Must be an integer between 128 and 10240.`
-        );
-    }
-
-
-    // Get current configuration
-    const currentConfig = await lambdaClient.send(
-        new GetFunctionConfigurationCommand({
-            FunctionName: functionName
-        })
+  // Validate memory
+  if (targetMemoryMb <= currentConfig.MemorySize) {
+    throw new Error(
+      `targetMemoryMb (${targetMemoryMb}) must be greater than ` +
+        `current memory (${currentConfig.MemorySize} MB)`,
     );
+  }
 
+  console.log("Increasing Lambda memory:", {
+    functionName,
+    from: currentConfig.MemorySize,
+    to: targetMemoryMb,
+  });
 
-    console.log("Increasing Lambda memory:", {
-        functionName,
-        from: currentConfig.MemorySize,
-        to: targetMemoryMb
-    });
+  // Update memory
+  await lambdaClient.send(
+    new UpdateFunctionConfigurationCommand({
+      FunctionName: functionName,
+      MemorySize: targetMemoryMb,
+    }),
+  );
 
-
-    // Update memory
-    await lambdaClient.send(
-        new UpdateFunctionConfigurationCommand({
-            FunctionName: functionName,
-            MemorySize: targetMemoryMb
-        })
-    );
-
-
-    return {
-        success: true,
-        incidentId,
-        actionTaken: "INCREASE_MEMORY",
-        functionName,
-        previousMemoryMb: currentConfig.MemorySize,
-        newMemoryMb: targetMemoryMb,
-        status: "COMPLETED"
-    };
+  return {
+    success: true,
+    incidentId,
+    actionTaken: "INCREASE_MEMORY",
+    functionName,
+    previousMemoryMb: currentConfig.MemorySize,
+    newMemoryMb: targetMemoryMb,
+    status: "COMPLETED",
+  };
 };
 
 
-// ============================================================
-// DISABLE_FUNCTION
-// ============================================================
-// Stops new Lambda invocations by setting reserved
-// concurrency to 0.
-//
-// This is reversible.
-// ============================================================
 
 const disableFunction = async (event, parameters) => {
 
@@ -363,11 +339,6 @@ const disableFunction = async (event, parameters) => {
 };
 
 
-// ============================================================
-// RE-ENABLE FUNCTION
-// ============================================================
-// Removes reserved concurrency restriction.
-// ============================================================
 
 export const reEnableFunction = async (resourceArn) => {
 
