@@ -16,9 +16,6 @@ Globals:
 
 Resources:
 
-  # ============================================================
-  # 1. FAILURE SOURCE
-  # ============================================================
 
   SelfHealingFaultyLambda:
     Type: AWS::Serverless::Function
@@ -54,9 +51,7 @@ Resources:
       Timeout: 30
 
 
-  # ============================================================
-  # 2. FAILURE DETECTION - CLOUDWATCH ALARM
-  # ============================================================
+
 
   SelfHealingFaultyLambdaAlarm:
     Type: AWS::CloudWatch::Alarm
@@ -78,9 +73,7 @@ Resources:
       TreatMissingData: notBreaching
 
 
-  # ============================================================
-  # 3. DIAGNOSIS - ZAMAN
-  # ============================================================
+
 
   DiagnoseWithBedrockFunction:
     Type: AWS::Serverless::Function
@@ -111,9 +104,6 @@ Resources:
               Resource: "*"
 
 
-  # ============================================================
-  # 4. FIX - JYOTISH
-  # ============================================================
 
   ApplyFixFunction:
     Type: AWS::Serverless::Function
@@ -129,9 +119,7 @@ Resources:
         - Version: "2012-10-17"
           Statement:
 
-            # ----------------------------------------------------
-            # Lambda fix actions
-            # ----------------------------------------------------
+
             - Effect: Allow
               Action:
                 - lambda:GetAlias
@@ -143,17 +131,12 @@ Resources:
                 - lambda:GetFunctionConfiguration
               Resource: !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:*"
 
-            # ----------------------------------------------------
-            # EC2 read-only
-            # ----------------------------------------------------
+
             - Effect: Allow
               Action:
                 - ec2:DescribeInstances
               Resource: "*"
 
-            # ----------------------------------------------------
-            # EC2 remediation
-            # ----------------------------------------------------
             - Effect: Allow
               Action:
                 - ec2:RebootInstances
@@ -162,9 +145,7 @@ Resources:
                 - ec2:ModifyInstanceAttribute
               Resource: !Sub "arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:instance/*"
 
-            # ----------------------------------------------------
-            # EC2 rollback AMI: launch replacement
-            # ----------------------------------------------------
+
             - Effect: Allow
               Action:
                 - ec2:RunInstances
@@ -175,9 +156,7 @@ Resources:
                 - !Sub "arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:volume/*"
                 - !Sub "arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:key-pair/*"
 
-            # ----------------------------------------------------
-            # EC2 rollback AMI: subnet / security group
-            # ----------------------------------------------------
+
             - Effect: Allow
               Action:
                 - ec2:RunInstances
@@ -188,17 +167,12 @@ Resources:
                 StringEquals:
                   "ec2:Vpc": "*"
 
-            # ----------------------------------------------------
-            # EC2 replacement: tag after launch
-            # ----------------------------------------------------
             - Effect: Allow
               Action:
                 - ec2:CreateTags
               Resource: !Sub "arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:instance/*"
 
-            # ----------------------------------------------------
-            # EC2: pass instance role
-            # ----------------------------------------------------
+
             - Effect: Allow
               Action:
                 - iam:PassRole
@@ -207,9 +181,6 @@ Resources:
                 StringEquals:
                   "iam:PassedToService": "ec2.amazonaws.com"
 
-            # ----------------------------------------------------
-            # DynamoDB fix actions
-            # ----------------------------------------------------
             - Effect: Allow
               Action:
                 - dynamodb:DescribeTable
@@ -221,9 +192,6 @@ Resources:
               Resource: !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/*"
 
 
-  # ============================================================
-  # 5. INCIDENT CHAT - JYOTISH
-  # ============================================================
 
   AskAboutIncidentsFunction:
     Type: AWS::Serverless::Function
@@ -236,9 +204,6 @@ Resources:
       Timeout: 30
 
 
-  # ============================================================
-  # 6. HUMAN APPROVAL HANDLER
-  # ============================================================
 
   ApprovalFunction:
     Type: AWS::Serverless::Function
@@ -266,9 +231,6 @@ Resources:
               Resource: "*"
 
 
-  # ============================================================
-  # 7. INCIDENT DATA
-  # ============================================================
 
   IncidentsTable:
     Type: AWS::DynamoDB::Table
@@ -285,13 +247,7 @@ Resources:
           KeyType: HASH
 
 
-  # ============================================================
-  # 8. EVENTBRIDGE
-  # ============================================================
 
-  # ------------------------------------------------------------
-  # Existing CloudWatch Alarm → Step Functions trigger
-  # ------------------------------------------------------------
 
   SelfHealingTrigger:
     Type: AWS::Events::Rule
@@ -329,9 +285,7 @@ Resources:
           RoleArn: arn:aws:iam::691588646018:role/service-role/Amazon_EventBridge_Invoke_Step_Functions_1487815626
 
 
-  # ------------------------------------------------------------
-  # EC2 State Change → Step Functions trigger
-  # ------------------------------------------------------------
+
 
   SelfHealingEC2StateChange:
     Type: AWS::Events::Rule
@@ -367,9 +321,7 @@ Resources:
           RoleArn: arn:aws:iam::691588646018:role/service-role/Amazon_EventBridge_Invoke_Step_Functions_1487815626
 
 
-  # ============================================================
-  # 9. STEP FUNCTIONS ORCHESTRATOR
-  # ============================================================
+
 
   SelfHealingOrchestrator:
     Type: AWS::Serverless::StateMachine
@@ -414,10 +366,6 @@ Resources:
               Resource: "*"
 
 
-  # ============================================================
-  # 10. AUTHENTICATION - COGNITO USER POOL
-  # ============================================================
-
   SelfHealingUserPool:
     Type: AWS::Cognito::UserPool
 
@@ -431,9 +379,7 @@ Resources:
         - email
 
 
-  # ============================================================
-  # 11. COGNITO SPA APP CLIENT
-  # ============================================================
+
 
   SelfHealingUserPoolClient:
     Type: AWS::Cognito::UserPoolClient
@@ -462,9 +408,6 @@ Resources:
         - http://localhost:5173/
 
 
-  # ============================================================
-  # 12. COGNITO HOSTED UI DOMAIN
-  # ============================================================
 
   SelfHealingCognitoDomain:
     Type: AWS::Cognito::UserPoolDomain
@@ -475,9 +418,7 @@ Resources:
       Domain: !Sub "self-healing-${AWS::AccountId}"
 
 
-  # ============================================================
-  # 13. FRONTEND APPROVAL API LAMBDA
-  # ============================================================
+
 
   ApprovalApiFunction:
     Type: AWS::Serverless::Function
@@ -513,9 +454,7 @@ Resources:
               Resource: "*"
 
 
-  # ============================================================
-  # 14. HTTP API GATEWAY
-  # ============================================================
+
 
   SelfHealingHttpApi:
     Type: AWS::Serverless::HttpApi
@@ -545,9 +484,6 @@ Resources:
 
         paths:
 
-          # ------------------------------------------------------
-          # GET /incidents
-          # ------------------------------------------------------
 
           /incidents:
             get:
@@ -563,9 +499,6 @@ Resources:
                     arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ApprovalApiFunction.Arn}/invocations
 
 
-          # ------------------------------------------------------
-          # GET /incidents/{id}
-          # ------------------------------------------------------
 
           /incidents/{id}:
             get:
@@ -581,9 +514,6 @@ Resources:
                     arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ApprovalApiFunction.Arn}/invocations
 
 
-          # ------------------------------------------------------
-          # POST /incidents/{id}/approve
-          # ------------------------------------------------------
 
           /incidents/{id}/approve:
             post:
@@ -599,10 +529,7 @@ Resources:
                     arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ApprovalApiFunction.Arn}/invocations
 
 
-          # ------------------------------------------------------
-          # POST /incidents/{id}/reject
-          # ------------------------------------------------------
-
+         
           /incidents/{id}/reject:
             post:
               security:
@@ -616,10 +543,6 @@ Resources:
                   Fn::Sub: >-
                     arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ApprovalApiFunction.Arn}/invocations
 
-
-          # ------------------------------------------------------
-          # POST /ask
-          # ------------------------------------------------------
 
           /ask:
             post:
@@ -635,9 +558,7 @@ Resources:
                     arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AskAboutIncidentsFunction.Arn}/invocations
 
 
-        # --------------------------------------------------------
-        # Cognito JWT Authorizer
-        # --------------------------------------------------------
+       
 
         components:
 
@@ -665,10 +586,7 @@ Resources:
                     - !Ref SelfHealingUserPoolClient
 
 
-  # ============================================================
-  # 15. LAMBDA PERMISSIONS FOR API GATEWAY
-  # ============================================================
-
+  
   ApprovalApiPermission:
     Type: AWS::Lambda::Permission
 
@@ -693,51 +611,35 @@ Resources:
         arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${SelfHealingHttpApi}/*/*
 
 
-# ==============================================================
-# OUTPUTS
-# ==============================================================
 
 Outputs:
 
-  # ------------------------------------------------------------
-  # API Gateway URL
-  # ------------------------------------------------------------
+
 
   ApiUrl:
     Description: HTTP API Gateway URL
     Value: !Sub "https://${SelfHealingHttpApi}.execute-api.${AWS::Region}.amazonaws.com"
 
 
-  # ------------------------------------------------------------
-  # Cognito User Pool ID
-  # ------------------------------------------------------------
 
   CognitoUserPoolId:
     Description: Cognito User Pool ID
     Value: !Ref SelfHealingUserPool
 
 
-  # ------------------------------------------------------------
-  # Cognito SPA Client ID
-  # ------------------------------------------------------------
+
 
   CognitoClientId:
     Description: Cognito public SPA client ID
     Value: !Ref SelfHealingUserPoolClient
 
 
-  # ------------------------------------------------------------
-  # Cognito Hosted UI Domain
-  # ------------------------------------------------------------
 
   CognitoDomain:
     Description: Cognito Hosted UI domain
     Value: !Sub "self-healing-${AWS::AccountId}.auth.${AWS::Region}.amazoncognito.com"
 
 
-  # ------------------------------------------------------------
-  # Cognito Region
-  # ------------------------------------------------------------
 
   CognitoRegion:
     Description: Cognito AWS region
